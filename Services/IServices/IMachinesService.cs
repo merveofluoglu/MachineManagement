@@ -13,10 +13,12 @@ namespace Services.IServices
         List<Machines> GetAll();
         Machines GetMachineById(long id);
         Machines GetMachineByName(string name);
-        void Add(Machines dto);
-        void Update(Machines dto);
-        void Delete(long id);
+        Task<Machines> AddAsync(Machines dto);
+        Task UpdateAsync(Machines dto);
+        Task DeleteAsync(Machines id);
         long GetMessageCount(long id);
         Machines GetLastMachine();
+        Task IncrementMessageCountAsync(long id);
+        Task DecrementMessageCountAsync(long id);
     }
 }

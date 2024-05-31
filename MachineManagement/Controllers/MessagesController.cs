@@ -11,13 +11,16 @@ namespace MachineManagement.Controllers
     [Route("api/[controller]")]
     public class MessagesController : ControllerBase
     {
+        private readonly IMachinesService _MachinesService;
         private readonly IMessagesService _MessagesService;
         private readonly DtoConverter _DtoConverter;
 
         public MessagesController(
             IMessagesService _messagesService,
+            IMachinesService _machinesService,
             DtoConverter _dtoConverter)
         {
+            _MachinesService = _machinesService;
             _MessagesService = _messagesService;
             _DtoConverter = _dtoConverter;
         }
@@ -87,7 +90,7 @@ namespace MachineManagement.Controllers
         }
 
         [HttpPost]
-        public IActionResult AddMessage([FromBody]MessagesDTO messageDto)
+        public async Task<IActionResult> AddMessage([FromBody]MessagesDTO messageDto)
         {
             try
             {
@@ -95,7 +98,8 @@ namespace MachineManagement.Controllers
                 {
                     return BadRequest();
                 }
-                _MessagesService.CreateMessage(_DtoConverter.DtoToEntity(messageDto));
+                await _MessagesService.CreateMessageAsync(_DtoConverter.DtoToEntity(messageDto));
+                await _MachinesService.IncrementMessageCountAsync(messageDto.Client_Id);
                 return Ok(_DtoConverter.EntityToDto(_MessagesService.GetLastMessage()));
             }
             catch(Exception _ex)
@@ -104,17 +108,18 @@ namespace MachineManagement.Controllers
             }
         }
 
-        [HttpDelete]
-        public IActionResult DeleteMessage(long messageId)
+        [HttpDelete("MessageId/{id}")]
+        public async Task<IActionResult> DeleteMessage(long id)
         {
             try
             {
-                var message = _MessagesService.GetMessageById(messageId);
+                var message = _MessagesService.GetMessageById(id);
                 if(message == null)
                 {
                     return NotFound();
                 }
-                _MessagesService.DeleteMessage(messageId);
+                await _MessagesService.DeleteMessageAsync(message);
+                await _MachinesService.DecrementMessageCountAsync(message.Client_Id);
                 return NoContent();
             }
             catch (Exception _ex)
@@ -124,7 +129,7 @@ namespace MachineManagement.Controllers
         }
 
         [HttpPost("{id}")]
-        public IActionResult ReadMessage(long id)
+        public async Task<IActionResult> ReadMessage(long id)
         {
             try
             {
@@ -133,7 +138,7 @@ namespace MachineManagement.Controllers
                 {
                     return NotFound(id);
                 }
-                _MessagesService.MessageIsRead(id);
+                await _MessagesService.MessageIsReadAsync(id);
                 return Ok(_DtoConverter.EntityToDto(_MessagesService.GetMessageById(id)));
             }
             catch(Exception _ex)

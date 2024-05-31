@@ -35,17 +35,26 @@ namespace Services.Services
             return _context.Messages.Where(x => x.Client_Id == id).ToList();
         }
 
-        public async void CreateMessage(Messages message)
+        public async Task CreateMessageAsync(Messages message)
         {
             await _context.Messages.AddAsync(message);
             await _context.SaveChangesAsync();
             MessageReceived(message.Id);
         }
 
-        public async void DeleteMessage(long id)
+        public async Task DeleteMessageAsync(Messages message)
         {
-            _context.Remove(id);
+            _context.Remove(message);
             await _context.SaveChangesAsync();
+        }
+
+        public async Task DeleteMessagesByClientIdAsync(long id)
+        {
+            var messages = _context.Messages.Where(x => x.Client_Id == id).ToList();
+            foreach (var message in messages)
+            {
+                await DeleteMessageAsync(message);
+            }
         }
 
         public bool IsRead(long id)
@@ -53,14 +62,14 @@ namespace Services.Services
             return _context.Messages.FirstOrDefault(x =>x.Id == id).IsRead;
         }
 
-        public bool MessageIsRead(long id)
+        public async Task<bool> MessageIsReadAsync(long id)
         {
             var message = _context.Messages.FirstOrDefault(x => x.Id == id);
             if (message != null)
             {
                 message.IsRead = true;
                 _context.Entry(message).State = EntityState.Modified;
-                _context.SaveChanges();
+                await _context.SaveChangesAsync();
                 return true;
             }
             return false;
@@ -81,7 +90,9 @@ namespace Services.Services
 
         public Messages GetLastMessage()
         {
-            return _context.Messages.Last();
+            return _context.Messages.OrderByDescending(x => x.Id).First();
         }
+
+
     }
 }

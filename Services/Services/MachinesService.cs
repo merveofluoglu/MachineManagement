@@ -35,19 +35,22 @@ namespace Services.Services
             return _context.Machines.FirstOrDefault(x => x.MachineName == name);
         }
 
-        public async void Add(Machines machine)
+        public async Task<Machines> AddAsync(Machines machine)
         {
+            machine.Status = "idle";
+            machine.MessageCount = 0;
             await _context.Machines.AddAsync(machine);
             await _context.SaveChangesAsync();
+            return _context.Machines.OrderByDescending(x => x.Id).First();
         }
 
-        public async void Update(Machines machine)
+        public async Task UpdateAsync(Machines machine)
         {
             _context.Entry(machine).State = EntityState.Modified;
             await _context.SaveChangesAsync();
         }
 
-        public async void Delete(long id)
+        public async Task DeleteAsync(Machines id)
         {
             _context.Remove(id);
             await _context.SaveChangesAsync();
@@ -60,7 +63,29 @@ namespace Services.Services
 
         public Machines GetLastMachine()
         {
-            return _context.Machines.OrderBy(x => x.Id).Last();
+            return _context.Machines.OrderByDescending(x => x.Id).First();
+        }
+
+        public async Task IncrementMessageCountAsync(long id)
+        {
+            var machine = _context.Machines.FirstOrDefault(x => x.Id == id);
+            if(machine != null)
+            {
+                machine.MessageCount++;
+                _context.Entry(machine).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task DecrementMessageCountAsync(long id)
+        {
+            var machine = _context.Machines.FirstOrDefault(x => x.Id == id);
+            if (machine != null)
+            {
+                machine.MessageCount--;
+                _context.Entry(machine).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
+            }
         }
     }
 }

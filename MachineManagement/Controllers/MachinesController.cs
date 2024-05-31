@@ -14,13 +14,16 @@ namespace MachineManagement.Controllers
     public class MachinesController : ControllerBase
     {
         private IMachinesService _MachinesService;
+        private IMessagesService _MessagesService;
         private DtoConverter _DtoConverter;
 
         public MachinesController(
             IMachinesService _machinesService, 
+            IMessagesService messagesService,
             DtoConverter _dtoConverter)
         {
             _MachinesService = _machinesService;
+            _MessagesService = messagesService;
             _DtoConverter = _dtoConverter;
         }
 
@@ -86,16 +89,15 @@ namespace MachineManagement.Controllers
         }
 
         [HttpPost]
-        public IActionResult AddMachines([FromBody] MachinesDTO machineDto)
+        public async Task<IActionResult> AddMachines([FromBody] MachinesDTO machineDto)
         {
             try
             {
                 if(machineDto == null)
                 {
                     return BadRequest();
-                }
-                _MachinesService.Add(_DtoConverter.DtoToEntity(machineDto));
-                return Ok();
+                }                
+                return Ok(await _MachinesService.AddAsync(_DtoConverter.DtoToEntity(machineDto)));
             }
             catch(Exception _ex)
             {
@@ -104,7 +106,7 @@ namespace MachineManagement.Controllers
         }
 
         [HttpPut]
-        public IActionResult UpdateMachine(long id, [FromBody] MachinesDTO machineDto)
+        public async Task<IActionResult> UpdateMachine(long id, [FromBody] MachinesDTO machineDto)
         {
             try
             {
@@ -117,7 +119,7 @@ namespace MachineManagement.Controllers
                 {
                     return NotFound();
                 }
-                _MachinesService.Update(_DtoConverter.DtoToEntity(machineDto));
+                await _MachinesService.UpdateAsync(_DtoConverter.DtoToEntity(machineDto));
                 return Ok();
             }
             catch(Exception _ex)
@@ -126,8 +128,8 @@ namespace MachineManagement.Controllers
             }
         }
 
-        [HttpDelete]
-        public IActionResult DeleteMachine(long id)
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteMachine(long id)
         {
             try
             {
@@ -136,7 +138,8 @@ namespace MachineManagement.Controllers
                 {
                     return NotFound();
                 }
-                _MachinesService.Delete(id);
+                await _MessagesService.DeleteMessagesByClientIdAsync(id);
+                await _MachinesService.DeleteAsync(machine);
                 return NoContent();
             }
             catch(Exception _ex)

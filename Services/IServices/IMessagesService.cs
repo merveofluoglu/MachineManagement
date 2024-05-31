@@ -13,10 +13,11 @@ namespace Services.IServices
         List<Messages> GetAll();
         Messages GetMessageById(long id);
         List<Messages> GetMessagesByClientId(long id);
-        void CreateMessage(Messages message);
-        void DeleteMessage(long id);
+        Task CreateMessageAsync(Messages message);
+        Task DeleteMessageAsync(Messages message);
+        Task DeleteMessagesByClientIdAsync(long id);
         bool MessageReceived(long id);
-        bool MessageIsRead(long id);
+        Task<bool> MessageIsReadAsync(long id);
         bool IsRead(long id);
         Messages GetLastMessage();
     }

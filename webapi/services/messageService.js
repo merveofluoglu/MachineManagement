@@ -8,7 +8,18 @@ const messagesService = {
         try {
             const response = await axios.get(`${url}/ClientId/${id}`);
             console.log(response.data);
-            return response.data;
+            if (response.data && response.data.length > 0) {
+                const columns = Object.keys(response.data[0]).map(key => ({
+                    id: key,
+                    label: key
+                        .replace(/_/g, ' ')                 
+                        .replace(/([a-z])([A-Z])/g, '$1 $2') 
+                        .replace(/^./, str => str.toUpperCase())
+                }));
+                return { messages: response.data, columns };
+            }
+
+            return { messages: [], columns: [] };
         } catch (error) {
             console.error("Error occurred while fetching messages:", error);
             throw error;
@@ -50,7 +61,7 @@ const messagesService = {
 
     deleteMessage: async (id) => {
         try {
-            const response = await axios.delete(url, id);
+            const response = await axios.delete(`${url}/MessageId/${id}`);
             console.log(response.data);
             return response.data;
         } catch (error) {
