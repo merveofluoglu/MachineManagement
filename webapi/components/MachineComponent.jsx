@@ -45,7 +45,7 @@ function MachineComponent() {
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
             <NavbarComponent toggleSidebar={toggleSidebar} />
-            <SidebarComponent isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} machines={machines} refreshMachines={refreshMachines} />
+            <SidebarComponent isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} refreshMachines={refreshMachines} />
             {loading ?
                 (<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
                     <CircularProgress />

@@ -8,7 +8,7 @@ import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
 import machineService from '../../services/machineService';
 
-function AddMachineComponent({ setAddModal, isAddModalOpen, handleCloseAdd, machines, refreshMachines }) {
+function AddMachineComponent({ setAddModal, isAddModalOpen, handleCloseAdd, refreshMachines }) {
 
     const [machineName, setMachineName] = useState('');
     const [description, setDescription] = useState('');

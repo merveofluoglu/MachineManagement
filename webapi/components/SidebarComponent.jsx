@@ -7,7 +7,7 @@ import { useState } from 'react';
 import AddMachineComponent from './machine/AddMachineComponent';
 import UpdateMachineComponent from './machine/UpdateMachineComponent';
 
-function SidebarComponent({ isOpen, toggleSidebar, machines, refreshMachines }) {
+function SidebarComponent({ isOpen, toggleSidebar, refreshMachines }) {
 
     const [isAddModalOpen, setAddModal] = useState(false);
     const [isUpdateModalOpen, setUpdateModal] = useState(false);
@@ -52,7 +52,6 @@ function SidebarComponent({ isOpen, toggleSidebar, machines, refreshMachines }) 
                         setAddModal={setAddModal}
                         isAddModalOpen={isAddModalOpen}
                         handleCloseAdd={handleCloseAdd}
-                        machines={machines}
                         refreshMachines={refreshMachines}
                     />
                 ) : (
