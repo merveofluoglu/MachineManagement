@@ -3,27 +3,37 @@ using Models.entities;
 using MQTTnet;
 using MQTTnet.Client;
 using Newtonsoft.Json.Linq;
-using Services.Context;
 using Services.IServices;
 using System.Text;
-using System.Text.Json.Nodes;
 
 namespace MqttCommunication
 {
     public class MqttWorkerService : BackgroundService
     {
         private readonly ILogger<MqttWorkerService> _Logger;
-        private IMqttClient _mqttClient;
+        private IMqttClient? _mqttClient;
         private readonly IConfiguration _Configuration;
-        private IMessagesService _MessagesService;
+        //private readonly IMessagesService _MessagesService;
+        private readonly IServiceProvider _ServiceProvider;
+
 
         public MqttWorkerService(ILogger<MqttWorkerService> logger,
                                 IConfiguration config,
-                                IMessagesService messagesService)
+                                //IMessagesService messagesService,
+                                IServiceProvider serviceProvider)
         {
-            _Logger = logger;
-            _Configuration = config;
-            _MessagesService = messagesService;
+
+            //_Logger = logger;
+            //_Configuration = config;
+            ////_MessagesService = messagesService;
+            //_ServiceProvider = serviceProvider;
+
+            _Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _Configuration = config ?? throw new ArgumentNullException(nameof(_Configuration));
+            _ServiceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+
+            _Logger.LogInformation("MqttWorkerService constructed.");
+
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -41,69 +51,98 @@ namespace MqttCommunication
 
         public override async Task StartAsync(CancellationToken cancellationToken)
         {
-            var mqttFactory = new MqttFactory();
-            _mqttClient = mqttFactory.CreateMqttClient();
-
-            var _section = _Configuration.GetSection("configuration:appSettings");
-
-            var _options = new MqttClientOptionsBuilder()
-                .WithTcpServer(_section.GetSection("server").Value, int.Parse(_section.GetSection("port").Value))
-                .WithKeepAlivePeriod(TimeSpan.FromSeconds(60))
-                .Build();
-
-            await _mqttClient.ConnectAsync(_options, cancellationToken);
-
-            _Logger.LogInformation("Connected successfully to the Broker");
-
-            // Subscribe to a topic
-            await _mqttClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("MACHINES/#").Build());
-
-            _mqttClient.ApplicationMessageReceivedAsync += async (_e) =>
+            try
             {
-                _Logger.LogInformation($"Received message: {Encoding.UTF8.GetString(_e.ApplicationMessage.PayloadSegment)}");
-                await ProcessMessageAsync(_e);
-            };
+                _Logger.LogInformation("StartAsync called.");
+
+                var mqttFactory = new MqttFactory();
+                _mqttClient = mqttFactory.CreateMqttClient();
+                
+                _mqttClient.ApplicationMessageReceivedAsync += async (_e) =>
+                {
+                    Console.WriteLine("Message: \n" + _e.ApplicationMessage.PayloadSegment);
+                    _Logger.LogInformation($"Received message: {Encoding.UTF8.GetString(_e.ApplicationMessage.PayloadSegment)}");
+                    await ProcessMessageAsync(_e);
+                };
+
+                var _section = _Configuration.GetSection("appSettings");
+
+                if (_section == null)
+                {
+                    _Logger.LogError("Configuration section 'configuration:appSettings' not found.");
+                    throw new ArgumentNullException(nameof(_section));
+                }
+
+                var _options = new MqttClientOptionsBuilder()
+                    .WithTcpServer(_section.GetSection("server").Value, int.Parse(_section.GetSection("port").Value))
+                    .WithKeepAlivePeriod(TimeSpan.FromSeconds(60))
+                    .Build();                
+
+                _mqttClient.ConnectAsync(_options, cancellationToken).Wait();
+
+                _Logger.LogInformation("Connected successfully to the Broker");
+
+                // Subscribe to a topic
+                _mqttClient.SubscribeAsync(_section.GetSection("Topics:0").Value, MQTTnet.Protocol.MqttQualityOfServiceLevel.AtMostOnce).Wait();
+                
+                _Logger.LogInformation("Subscribed to topic successfully.");
+
+                Console.ReadLine();
+                _mqttClient.DisconnectAsync().Wait();                
+            }
+            catch (Exception ex)
+            {
+                _Logger.LogError(ex, "An error occurred in StartAsync.");
+                throw;
+            }
         }
 
         private async Task ProcessMessageAsync(MqttApplicationMessageReceivedEventArgs _e)
         {
-            var topicName = _e.ApplicationMessage.Topic;
-            var section = _Configuration.GetSection("Configuration:appSettings:Topics");
-
-            if (IsTopicValid(topicName, section))
+            using (var scope = _ServiceProvider.CreateScope())
             {
-                try
-                {
-                    var _message = Encoding.UTF8.GetString(_e.ApplicationMessage.PayloadSegment);
-                    var obj = JObject.Parse(_message);
+                var topicName = _e.ApplicationMessage.Topic;
+                var section = _Configuration.GetSection("appSettings:Topics");
 
-                    if (IsMessageValid(obj))
-                    {
-                        await _MessagesService.CreateMessageAsync(
-                                                new Messages
-                                                {
-                                                    Client_Id = (long)obj.GetValue("client_id"),
-                                                    Message = obj.GetValue("message").ToString(),
-                                                    Topic = topicName,
-                                                    StatusCode = 200,
-                                                    ErrorCode = 0,
-                                                    ErrorType = null,
-                                                    ErrorMessage = null,
-                                                    IsReceived = true,
-                                                    IsRead = false,
-                                                    Date = DateTime.Now
-                                                }
-                                            );
-                        _Logger.LogInformation($"Received message added to the database.");
-                    }
-                    else
-                    {
-                        _Logger.LogInformation($"Received message: {Encoding.UTF8.GetString(_e.ApplicationMessage.PayloadSegment)} is not valid.");
-                    }
-                }
-                catch (Exception _ex)
+                if (IsTopicValid(topicName, section))
                 {
-                    _Logger.LogError(_ex.Message);
+                    try
+                    {
+                        var _MessagesService = scope.ServiceProvider.GetRequiredService<IMessagesService>();
+                        var _MachinesService = scope.ServiceProvider.GetRequiredService<IMachinesService>();
+
+                        var _message = Encoding.UTF8.GetString(_e.ApplicationMessage.PayloadSegment);
+                        var obj = JObject.Parse(_message);
+
+                        if (IsMessageValid(obj))
+                        {
+                            await _MessagesService.CreateMessageAsync(
+                                                    new Messages
+                                                    {
+                                                        Client_Id = (long)obj.GetValue("client_id"),
+                                                        Message = obj.GetValue("message").ToString(),
+                                                        Topic = topicName.Split("/").Last(),
+                                                        StatusCode = 200,
+                                                        ErrorCode = 0,
+                                                        ErrorType = null,
+                                                        ErrorMessage = null,
+                                                        IsReceived = true,
+                                                        IsRead = false,
+                                                        Date = DateTime.Now
+                                                    }
+                                                );
+                            await _MachinesService.IncrementMessageCountAsync((long)obj.GetValue("client_id"));
+                            _Logger.LogInformation($"Received message added to the database. ");
+                        }
+                        else
+                        {
+                            _Logger.LogInformation($"Received message: {Encoding.UTF8.GetString(_e.ApplicationMessage.PayloadSegment)} is not valid.");
+                        }
+                    }
+                    catch (Exception _ex)
+                    {
+                        _Logger.LogError(_ex.Message);
+                    }
                 }
             }
         }
@@ -115,12 +154,11 @@ namespace MqttCommunication
 
         private bool IsMessageValid(JObject obj)
         {
-            if(obj.GetValue("client_id").IsNullOrEmpty() || obj.GetValue("message").IsNullOrEmpty())
+            if (obj.GetValue("client_id").ToString().IsNullOrEmpty() || obj.GetValue("message").ToString().IsNullOrEmpty())
             {
                 return false;
             }
             return true;
         }
-
     }
 }
