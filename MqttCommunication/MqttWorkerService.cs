@@ -13,27 +13,18 @@ namespace MqttCommunication
         private readonly ILogger<MqttWorkerService> _Logger;
         private IMqttClient? _mqttClient;
         private readonly IConfiguration _Configuration;
-        //private readonly IMessagesService _MessagesService;
         private readonly IServiceProvider _ServiceProvider;
 
 
         public MqttWorkerService(ILogger<MqttWorkerService> logger,
                                 IConfiguration config,
-                                //IMessagesService messagesService,
                                 IServiceProvider serviceProvider)
         {
-
-            //_Logger = logger;
-            //_Configuration = config;
-            ////_MessagesService = messagesService;
-            //_ServiceProvider = serviceProvider;
-
             _Logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _Configuration = config ?? throw new ArgumentNullException(nameof(_Configuration));
             _ServiceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
 
             _Logger.LogInformation("MqttWorkerService constructed.");
-
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -82,7 +73,7 @@ namespace MqttCommunication
 
                 _Logger.LogInformation("Connected successfully to the Broker");
 
-                // Subscribe to a topic
+                // Subscribe to the topic.
                 _mqttClient.SubscribeAsync(_section.GetSection("Topics:0").Value, MQTTnet.Protocol.MqttQualityOfServiceLevel.AtMostOnce).Wait();
                 
                 _Logger.LogInformation("Subscribed to topic successfully.");
