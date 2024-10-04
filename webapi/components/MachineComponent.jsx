@@ -5,6 +5,7 @@ import Box from '@mui/material/Box';
 import MachineCardComponent from './MachineCardComponent';
 import NavbarComponent from './NavbarComponent';
 import SidebarComponent from './SidebarComponent';
+import WebSocketComponent from './websocket/WebSocketComponent';
 
 function MachineComponent() {
 
@@ -59,6 +60,7 @@ function MachineComponent() {
                     </Box>
                 </Box>
             }
+            <WebSocketComponent />
         </Box>
     );    
 }

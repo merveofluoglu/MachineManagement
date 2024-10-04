@@ -1,4 +1,4 @@
-namespace MachineManagement
+namespace WebSocketApi
 {
     public class WeatherForecast
     {

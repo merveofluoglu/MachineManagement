@@ -4,6 +4,7 @@ using MQTTnet;
 using MQTTnet.Client;
 using Newtonsoft.Json.Linq;
 using Services.IServices;
+using System.Net.Http;
 using System.Text;
 
 namespace MqttCommunication
@@ -14,15 +15,18 @@ namespace MqttCommunication
         private IMqttClient? _mqttClient;
         private readonly IConfiguration _Configuration;
         private readonly IServiceProvider _ServiceProvider;
+        private readonly IHttpClientFactory _HttpClientFactory;
 
 
         public MqttWorkerService(ILogger<MqttWorkerService> logger,
                                 IConfiguration config,
-                                IServiceProvider serviceProvider)
+                                IServiceProvider serviceProvider,
+                                 IHttpClientFactory httpClientFactory)
         {
             _Logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _Configuration = config ?? throw new ArgumentNullException(nameof(_Configuration));
             _ServiceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+            _HttpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
 
             _Logger.LogInformation("MqttWorkerService constructed.");
         }
@@ -101,29 +105,36 @@ namespace MqttCommunication
                     {
                         var _MessagesService = scope.ServiceProvider.GetRequiredService<IMessagesService>();
                         var _MachinesService = scope.ServiceProvider.GetRequiredService<IMachinesService>();
+                        var _htpp = scope.ServiceProvider.GetRequiredService<IHttpClientFactory>();
 
                         var _message = Encoding.UTF8.GetString(_e.ApplicationMessage.PayloadSegment);
                         var obj = JObject.Parse(_message);
 
                         if (IsMessageValid(obj))
                         {
-                            await _MessagesService.CreateMessageAsync(
-                                                    new Messages
-                                                    {
-                                                        Client_Id = (long)obj.GetValue("client_id"),
-                                                        Message = obj.GetValue("message").ToString(),
-                                                        Topic = topicName.Split("/").Last(),
-                                                        StatusCode = 200,
-                                                        ErrorCode = 0,
-                                                        ErrorType = null,
-                                                        ErrorMessage = null,
-                                                        IsReceived = true,
-                                                        IsRead = false,
-                                                        Date = DateTime.Now
-                                                    }
-                                                );
+                            var msg = new Messages
+                            {
+                                Client_Id = (long)obj.GetValue("client_id"),
+                                Message = obj.GetValue("message").ToString(),
+                                Topic = topicName.Split("/").Last(),
+                                StatusCode = 200,
+                                ErrorCode = 0,
+                                ErrorType = null,
+                                ErrorMessage = null,
+                                IsReceived = true,
+                                IsRead = false,
+                                Date = DateTime.Now
+                            };
+
+                            await _MessagesService.CreateMessageAsync(msg);
                             await _MachinesService.IncrementMessageCountAsync((long)obj.GetValue("client_id"));
                             _Logger.LogInformation($"Received message added to the database. ");
+
+                            // Notify WebSocketApi server
+                            var httpClient = _HttpClientFactory.CreateClient();
+                            var jsonMessage = JObject.FromObject(msg).ToString();
+                            var content = new StringContent(jsonMessage, Encoding.UTF8, "application/json");
+                            await httpClient.PostAsync("http://localhost:7040/Notification/notify", content);
                         }
                         else
                         {

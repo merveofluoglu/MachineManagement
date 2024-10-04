@@ -1,6 +1,6 @@
 @MachineManagement_HostAddress = http://localhost:5156
 
-GET {{MachineManagement_HostAddress}}/weatherforecast/
+GET {{MachineManagement_HostAddress}}/machines/
 Accept: application/json
 
 ###

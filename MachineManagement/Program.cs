@@ -14,7 +14,7 @@ IConfigurationRoot Configuration = new ConfigurationBuilder()
 // Add services to the container.
 
 builder.Services.AddControllers();
-builder.Services.AddDbContext<MachineManagementDbContext>(options => options.UseSqlServer(Configuration["ConnectionStrings:conStr"]));
+builder.Services.AddDbContext<MachineManagementDbContext>(options => options.UseSqlServer(Configuration["ConnectionStrings:constr"]));
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddScoped<IMachinesService, MachinesService>();
 builder.Services.AddScoped<IMessagesService, MessagesService>();
